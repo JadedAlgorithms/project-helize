@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS logs (
     level       TEXT NOT NULL DEFAULT 'UNKNOWN',
     message     TEXT NOT NULL,
     source_file TEXT NOT NULL,
-    FOREIGN KEY (agent_id) REFERENCE agents(agent_id)
+    FOREIGN KEY (agent_id) REFERENCES agents(agent_id)
 );
 
 -- alerts table 
