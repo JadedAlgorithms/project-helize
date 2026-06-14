@@ -1,14 +1,17 @@
 mod tailer;
 mod watcher;
-fn main() {
-    if let Err(e) = watcher::watch("/tmp/logs") {
-        eprintln!("Error: {}", e);
-    }
-    let log_file = "/tmp/test.log";
-    println!("Watching {}...",log_file);
-    if let Err(e) = tailer::tail_f(log_file, |line| {
-        print!("{}",line);
-    })  {
-        eprintln!("Error: {}",e);
-    }
+mod messages;
+mod connection;
+
+use tokio::sync::mpsc;
+
+#[tokio::main]
+async fn main() {
+    let (tx, rx) = mpsc::channel(100);
+
+    tokio::spawn(connection::run(rx));
+    tokio::spawn(watcher::watch("/tmp/logs", tx));
+
+    tokio::signal::ctrl_c().await.unwrap();
+    println!("shutting down");
 }
