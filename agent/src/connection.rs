@@ -3,8 +3,11 @@ use tokio::io::AsyncWriteExt;
 use tokio::sync::mpsc;
 use crate::messages::LogMessage;
 use crate::messages::RegisterMessage;
-
+use std::time::Duration;
+use tokio::time::sleep;
 pub async fn run(mut rx: mpsc::Receiver<LogMessage>) {
+    let mut backoff = Duration::from_secs(1);
+    loop{
     let stream = TcpStream::connect("127.0.0.1:9000").await;
     
     match stream {
@@ -18,16 +21,27 @@ pub async fn run(mut rx: mpsc::Receiver<LogMessage>) {
             };
             let mut json = serde_json::to_string(&reg).unwrap();
             json.push('\n');
-            s.write_all(json.as_bytes()).await.unwrap();
+            if s.write_all(json.as_bytes()).await.is_err() {
+            sleep(backoff).await;
+            backoff = (backoff * 2).min(Duration::from_secs(30));
+            continue;
+            }
             println!("registration sent");
+            backoff = Duration::from_secs(1);
             while let Some(msg) = rx.recv().await {
                 let mut json = serde_json::to_string(&msg).unwrap();
                 json.push('\n');
-                s.write_all(json.as_bytes()).await.unwrap();
+                if s.write_all(json.as_bytes()).await.is_err() {
+                break;
+                }
             }
         }
-        Err(e) => {
-            println!("failed to connect: {}", e);
-        }
+    
+    Err(e) => {
+    println!("failed to connect: {}", e);
+    sleep(backoff).await;
+    backoff = (backoff * 2).min(Duration::from_secs(30));
+}
     }
+}
 }

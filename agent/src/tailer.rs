@@ -1,14 +1,14 @@
 use tokio::fs::File;
 use tokio::io::AsyncSeekExt;
-use tokio::time::sleep;
 use tokio::io::AsyncBufReadExt;
 use tokio::sync::mpsc;
 use crate::messages::LogMessage;
 use tokio::io::BufReader;
-use std::time::Duration;
 use std::io;
 use std::io::SeekFrom;
 use chrono::Utc;
+use std::time::Duration;
+
 
 pub async fn tail_f(path: &str, tx: mpsc::Sender<LogMessage>) -> io::Result<()>
     {    
@@ -27,7 +27,9 @@ pub async fn tail_f(path: &str, tx: mpsc::Sender<LogMessage>) -> io::Result<()>
                 message: line.clone(),
                 source_file: path.to_string(),
             };
-                tx.send(log).await.unwrap();
+                if tx.send(log).await.is_err() {
+                    break; 
+                }
                 line.clear();
             }
             else{
